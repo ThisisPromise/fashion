@@ -1,0 +1,41 @@
+Trainable parameters: 152323 (cap: 2,000,000)
+Frozen (backbone) parameters: 927008
+Class weights (sqrt inverse-frequency, from train split): {'background': 0.295271635055542, 'body': 0.9434636831283569, 'sleeve': 1.761264681816101}
+epoch 01/25  train_loss=0.9183  val_loss=0.6924  val_mIoU=0.6163  per_class=[0.944, 0.597, 0.307]
+epoch 02/25  train_loss=0.6657  val_loss=0.6045  val_mIoU=0.6541  per_class=[0.953, 0.612, 0.398]
+epoch 03/25  train_loss=0.5943  val_loss=0.5584  val_mIoU=0.6417  per_class=[0.944, 0.608, 0.373]
+epoch 04/25  train_loss=0.5540  val_loss=0.5388  val_mIoU=0.6549  per_class=[0.95, 0.618, 0.397]
+epoch 05/25  train_loss=0.5182  val_loss=0.5293  val_mIoU=0.6736  per_class=[0.953, 0.617, 0.451]
+epoch 06/25  train_loss=0.5008  val_loss=0.5185  val_mIoU=0.6822  per_class=[0.958, 0.653, 0.435]
+epoch 07/25  train_loss=0.4802  val_loss=0.5339  val_mIoU=0.6650  per_class=[0.951, 0.616, 0.428]
+epoch 08/25  train_loss=0.4615  val_loss=0.5242  val_mIoU=0.6812  per_class=[0.959, 0.638, 0.447]
+epoch 09/25  train_loss=0.4608  val_loss=0.5204  val_mIoU=0.6781  per_class=[0.955, 0.63, 0.449]
+epoch 10/25  train_loss=0.4500  val_loss=0.5267  val_mIoU=0.6880  per_class=[0.96, 0.645, 0.459]
+epoch 11/25  train_loss=0.4232  val_loss=0.5335  val_mIoU=0.6628  per_class=[0.949, 0.611, 0.429]
+epoch 12/25  train_loss=0.4139  val_loss=0.5246  val_mIoU=0.6667  per_class=[0.949, 0.62, 0.431]
+epoch 13/25  train_loss=0.4107  val_loss=0.5191  val_mIoU=0.6860  per_class=[0.957, 0.646, 0.455]
+epoch 14/25  train_loss=0.3907  val_loss=0.5148  val_mIoU=0.6795  per_class=[0.953, 0.622, 0.463]
+epoch 15/25  train_loss=0.3908  val_loss=0.5339  val_mIoU=0.6718  per_class=[0.949, 0.606, 0.461]
+epoch 16/25  train_loss=0.3803  val_loss=0.5072  val_mIoU=0.6929  per_class=[0.959, 0.647, 0.473]
+epoch 17/25  train_loss=0.3666  val_loss=0.5250  val_mIoU=0.6822  per_class=[0.955, 0.647, 0.445]
+epoch 18/25  train_loss=0.3642  val_loss=0.5131  val_mIoU=0.6927  per_class=[0.954, 0.633, 0.491]
+epoch 19/25  train_loss=0.3457  val_loss=0.5772  val_mIoU=0.6945  per_class=[0.96, 0.643, 0.48]
+epoch 20/25  train_loss=0.3579  val_loss=0.5191  val_mIoU=0.6808  per_class=[0.952, 0.626, 0.464]
+epoch 21/25  train_loss=0.3481  val_loss=0.5648  val_mIoU=0.6876  per_class=[0.958, 0.644, 0.461]
+epoch 22/25  train_loss=0.3440  val_loss=0.5490  val_mIoU=0.6725  per_class=[0.952, 0.623, 0.443]
+epoch 23/25  train_loss=0.3319  val_loss=0.5125  val_mIoU=0.6861  per_class=[0.955, 0.636, 0.468]
+epoch 24/25  train_loss=0.3440  val_loss=0.5946  val_mIoU=0.6912  per_class=[0.959, 0.633, 0.482]
+epoch 25/25  train_loss=0.3357  val_loss=0.5319  val_mIoU=0.6927  per_class=[0.958, 0.644, 0.476]
+Final validation metrics (best checkpoint): {
+  "best_epoch": 16,
+  "val_loss": 0.5072241829974311,
+  "per_class_iou": {
+    "background": 0.9587797522544861,
+    "body": 0.6465544700622559,
+    "sleeve": 0.4732351005077362
+  },
+  "mean_iou": 0.69285649061203,
+  "trainable_params": 152323,
+  "frozen_params": 927008
+}
+Saved training curves to outputs/training_curves.png

@@ -1,0 +1,9 @@
+case_id,garment_image,artwork,instruction,expected_region
+case01,data/processed/images/12831.jpg,badge_circle.png,"front, left chest",left chest
+case02,data/processed/images/12831.jpg,badge_circle.png,"front, right chest",right chest
+case03,data/processed/images/6410.jpg,wordmark_rect.png,"front, centred",centre
+case04,sample_garments/suit.jpg,diamond_small.png,"front, left chest",left chest
+case05,data/processed/images/17313.jpg,badge_circle.png,"front, centred",centre
+case06,data/processed/images/16186.jpg,wordmark_rect.png,"front, right chest",right chest
+case07,data/processed/images/12208.jpg,badge_circle.png,"front, centred",centre
+case08,sample_garments/suit.jpg,diamond_small.png,"front, right chest",right chest

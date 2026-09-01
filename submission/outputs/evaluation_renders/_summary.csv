@@ -1,0 +1,9 @@
+case_id,garment_image,instruction,status,reason,anchor_xy,artwork_size_px
+case01,data/processed/images/12831.jpg,"front, left chest",ok,placed,"(197, 592)","(82, 82)"
+case02,data/processed/images/12831.jpg,"front, right chest",ok,placed,"(380, 478)","(58, 58)"
+case03,data/processed/images/6410.jpg,"front, centred",ok,placed,"(329, 402)","(87, 37)"
+case04,sample_garments/suit.jpg,"front, left chest",ok,placed,"(78, 88)","(13, 13)"
+case05,data/processed/images/17313.jpg,"front, centred",ok,placed,"(580, 621)","(181, 181)"
+case06,data/processed/images/16186.jpg,"front, right chest",ok,placed,"(398, 321)","(68, 29)"
+case07,data/processed/images/12208.jpg,"front, centred",ok,placed,"(269, 367)","(82, 82)"
+case08,sample_garments/suit.jpg,"front, right chest",ok,placed,"(107, 89)","(14, 14)"

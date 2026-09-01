@@ -1,0 +1,12 @@
+{
+  "best_epoch": 16,
+  "val_loss": 0.5072241829974311,
+  "per_class_iou": {
+    "background": 0.9587797522544861,
+    "body": 0.6465544700622559,
+    "sleeve": 0.4732351005077362
+  },
+  "mean_iou": 0.69285649061203,
+  "trainable_params": 152323,
+  "frozen_params": 927008
+}

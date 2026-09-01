@@ -1,0 +1,13 @@
+{
+  "seed": 0,
+  "image_size": 320,
+  "batch_size": 8,
+  "epochs": 25,
+  "lr": 0.001,
+  "decoder_channels": 64,
+  "num_classes": 3,
+  "class_names": ["background", "body", "sleeve"],
+  "checkpoint_path": "outputs/checkpoint.pt",
+  "curves_path": "outputs/training_curves.png",
+  "metrics_path": "outputs/val_metrics.json"
+}
