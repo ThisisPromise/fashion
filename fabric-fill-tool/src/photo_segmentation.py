@@ -64,8 +64,20 @@ def _load_model(checkpoint_path):
 @torch.no_grad()
 def predict_labels(image_path, checkpoint_path=DEFAULT_CHECKPOINT):
     """Per-pixel class id at the photo's original resolution, plus the
-    checkpoint's class_names. Same argmax-then-nearest-upsample path as
-    submission/src/placement.py:predict_regions."""
+    checkpoint's class_names.
+
+    Upsamples the model's raw per-class scores to the photo's real
+    resolution with bilinear interpolation BEFORE picking a winner per
+    pixel, rather than picking the winner at the model's native 320x320 and
+    blowing that decision up with nearest-neighbor. Deciding-then-blocking-
+    up turns each of the model's coarse cells into a visible square block
+    once stretched over a much larger photo -- that's what caused the
+    jagged/blocky region edges. Upsampling the scores first lets the
+    boundary curve smoothly between cells instead of stair-stepping. This
+    doesn't invent detail the model never predicted -- a genuinely
+    wrong-shaped region is still wrong-shaped -- it only removes the
+    artificial blockiness sitting on top of whatever the model actually
+    predicted."""
     model, cfg = _load_model(checkpoint_path)
     garment_image = Image.open(image_path).convert("RGB")
     size = cfg["image_size"]
@@ -77,10 +89,10 @@ def predict_labels(image_path, checkpoint_path=DEFAULT_CHECKPOINT):
     tensor = torch.from_numpy(arr.transpose(2, 0, 1)).float().unsqueeze(0)
 
     logits = model(tensor)
-    pred = logits.argmax(dim=1)[0].numpy()
-
-    pred_img = Image.fromarray(pred.astype(np.uint8), mode="L").resize((orig_w, orig_h), Image.NEAREST)
-    pred_full = np.array(pred_img)
+    logits_full = torch.nn.functional.interpolate(
+        logits, size=(orig_h, orig_w), mode="bilinear", align_corners=False
+    )
+    pred_full = logits_full.argmax(dim=1)[0].numpy().astype(np.uint8)
     return pred_full, cfg["class_names"]
 
 
