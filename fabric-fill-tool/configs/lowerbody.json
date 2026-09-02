@@ -1,0 +1,14 @@
+{
+  "seed": 0,
+  "image_size": 320,
+  "batch_size": 8,
+  "epochs": 25,
+  "lr": 0.001,
+  "decoder_channels": 64,
+  "num_classes": 4,
+  "class_names": ["background", "body", "pocket", "zipper"],
+  "data_dir": "fabric-fill-tool/data/lowerbody",
+  "checkpoint_path": "fabric-fill-tool/outputs/lowerbody/checkpoint.pt",
+  "curves_path": "fabric-fill-tool/outputs/lowerbody/training_curves.png",
+  "metrics_path": "fabric-fill-tool/outputs/lowerbody/val_metrics.json"
+}
