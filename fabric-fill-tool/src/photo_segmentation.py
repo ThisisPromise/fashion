@@ -36,8 +36,9 @@ PROJECT_ROOT = os.path.dirname(TOOL_DIR)
 SUBMISSION_DIR = os.path.join(PROJECT_ROOT, "submission")
 
 ORIGINAL_CHECKPOINT = os.path.join(SUBMISSION_DIR, "outputs", "checkpoint.pt")
-EXTENDED_CHECKPOINT = os.path.join(TOOL_DIR, "outputs", "upperbody_extended", "checkpoint.pt")
-DEFAULT_CHECKPOINT = EXTENDED_CHECKPOINT
+UPPERBODY_CHECKPOINT = os.path.join(TOOL_DIR, "outputs", "upperbody_extended", "checkpoint.pt")
+LOWERBODY_CHECKPOINT = os.path.join(TOOL_DIR, "outputs", "lowerbody", "checkpoint.pt")
+DEFAULT_CHECKPOINT = UPPERBODY_CHECKPOINT
 
 sys.path.insert(0, SUBMISSION_DIR)
 from src.model import TinyGarmentSegModel  # noqa: E402

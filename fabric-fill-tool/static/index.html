@@ -183,6 +183,10 @@ img { max-width: 100%; }
         <div class="source-group">
           <span class="source-label">Real photos <span class="source-tag">trained model</span></span>
           <div class="row">
+            <div class="image-switch" id="photo-area-switch">
+              <button class="switch-btn active" data-area="upperbody">Upper body</button>
+              <button class="switch-btn" data-area="lowerbody">Lower body</button>
+            </div>
             <div class="image-switch" id="photo-switch">
               <button class="switch-btn" data-preset="photo1">Photo 1</button>
               <button class="switch-btn" data-preset="photo2">Photo 2</button>
@@ -192,6 +196,7 @@ img { max-width: 100%; }
               <input type="file" id="photo-input" accept="image/*">
             </label>
           </div>
+          <p class="hint">Photo 1 is cropped at the waist (upper body only); Photo 2 shows the full body, so it's the one to try for Lower body.</p>
         </div>
         <p class="hint">Drag a fabric swatch straight onto any panel to fill it directly. Or click one or more panels first to select a group &mdash; then dropping a swatch on any of them fills the whole group at once.</p>
       </div>
@@ -248,6 +253,7 @@ const state = {
   currentAsset: null,
   presetCache: {},
   showAllRegions: false,
+  photoArea: 'upperbody',
 };
 
 // distinct per-region colors for the "show regions" overview -- cycles if
@@ -322,17 +328,16 @@ async function loadAsset(asset) {
   updateStatus();
 }
 
-async function loadPreset(name, apiPath) {
+async function loadPresetUrl(url) {
   setError('');
   setLoading(true);
-  const cacheKey = apiPath + name;
   try {
-    if (!state.presetCache[cacheKey]) {
-      const res = await fetch(apiPath + name);
+    if (!state.presetCache[url]) {
+      const res = await fetch(url);
       if (!res.ok) throw new Error('preset failed');
-      state.presetCache[cacheKey] = await res.json();
+      state.presetCache[url] = await res.json();
     }
-    await loadAsset(state.presetCache[cacheKey]);
+    await loadAsset(state.presetCache[url]);
   } catch (e) {
     setError('Could not load that preset. Is the server running?');
   } finally {
@@ -343,11 +348,14 @@ async function loadPreset(name, apiPath) {
 async function uploadImage(file, endpoint) {
   setError('');
   setLoading(true);
-  document.querySelectorAll('.switch-btn').forEach((b) => b.classList.remove('active'));
+  const isPhoto = endpoint === '/api/segment_photo';
+  document.querySelectorAll(isPhoto ? '#photo-switch .switch-btn' : '#image-switch .switch-btn')
+    .forEach((b) => b.classList.remove('active'));
+  const url = isPhoto ? `${endpoint}?area=${state.photoArea}` : endpoint;
   try {
     const form = new FormData();
     form.append('image', file);
-    const res = await fetch(endpoint, { method: 'POST', body: form });
+    const res = await fetch(url, { method: 'POST', body: form });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'segment failed');
     await loadAsset(data);
@@ -591,20 +599,37 @@ document.getElementById('stage').addEventListener('drop', (e) => {
   updateStatus();
 });
 
+function setActiveInGroup(groupEl, btn) {
+  groupEl.querySelectorAll('.switch-btn').forEach((b) => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
 document.getElementById('image-switch').addEventListener('click', (e) => {
+  const group = e.currentTarget;
   const btn = e.target.closest('.switch-btn');
   if (!btn) return;
-  document.querySelectorAll('.switch-btn').forEach((b) => b.classList.remove('active'));
-  btn.classList.add('active');
-  loadPreset(btn.dataset.preset, '/api/preset/');
+  setActiveInGroup(group, btn);
+  loadPresetUrl(`/api/preset/${btn.dataset.preset}`);
 });
 
 document.getElementById('photo-switch').addEventListener('click', (e) => {
+  const group = e.currentTarget;
   const btn = e.target.closest('.switch-btn');
   if (!btn) return;
-  document.querySelectorAll('.switch-btn').forEach((b) => b.classList.remove('active'));
-  btn.classList.add('active');
-  loadPreset(btn.dataset.preset, '/api/preset_photo/');
+  setActiveInGroup(group, btn);
+  loadPresetUrl(`/api/preset_photo/${btn.dataset.preset}?area=${state.photoArea}`);
+});
+
+document.getElementById('photo-area-switch').addEventListener('click', (e) => {
+  const group = e.currentTarget;
+  const btn = e.target.closest('.switch-btn');
+  if (!btn) return;
+  setActiveInGroup(group, btn);
+  state.photoArea = btn.dataset.area;
+  const activePhotoBtn = document.querySelector('#photo-switch .switch-btn.active');
+  if (activePhotoBtn) {
+    loadPresetUrl(`/api/preset_photo/${activePhotoBtn.dataset.preset}?area=${state.photoArea}`);
+  }
 });
 
 document.getElementById('apply-btn').addEventListener('click', applyFabric);
@@ -624,7 +649,7 @@ document.getElementById('reset-btn').addEventListener('click', () => {
   await preloadDefaultFabrics();
   setupDropZone('sketch-drop', 'sketch-input', '/api/segment');
   setupDropZone('photo-drop', 'photo-input', '/api/segment_photo');
-  await loadPreset('sketch', '/api/preset/');
+  await loadPresetUrl('/api/preset/sketch');
 })();
 </script>
 </body>
