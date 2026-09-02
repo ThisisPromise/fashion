@@ -105,12 +105,23 @@ def _split_left_right(mask, min_area=MIN_REGION_AREA_PX):
     return [m for m in (left, right) if m.sum() >= min_area]
 
 
+# Classes that are anatomically two-sided (a garment's own left/right front
+# panel, a collar's left/right point) get the same left/right centerline
+# split as body -- one clean region per side, instead of exposing every
+# small disconnected fragment the raw prediction happens to break into.
+# Also collapses a lot of the "boundary is messy" complaint: several tiny
+# scattered blobs become two coherent halves. Sleeve/pocket/zipper don't get
+# this -- sleeves already separate naturally (left/right arm don't touch),
+# and there's no similar "two sides" reading for a zipper or a single pocket.
+BILATERAL_CLASS_NAMES = {"collar", "neckline"}
+
+
 def extract_regions(image_path, checkpoint_path=DEFAULT_CHECKPOINT):
     """Returns {region_id: bool mask} -- same shape as
     flats_segmentation.extract_regions, so the frontend needs zero changes
     to handle either source. Works for any checkpoint: class 1 (body) is
-    split left/right; every class above that is split by connected
-    components, whatever the checkpoint's class list actually contains."""
+    always split left/right; bilateral part classes (collar, neckline) get
+    the same treatment; everything else is split by connected components."""
     pred_full, class_names = predict_labels(image_path, checkpoint_path)
 
     regions = {}
@@ -123,7 +134,11 @@ def extract_regions(image_path, checkpoint_path=DEFAULT_CHECKPOINT):
 
     for class_id in range(2, len(class_names)):
         class_mask = pred_full == class_id
-        for m in _label_and_filter(class_mask):
+        if class_names[class_id] in BILATERAL_CLASS_NAMES:
+            pieces = _split_left_right(class_mask)
+        else:
+            pieces = _label_and_filter(class_mask)
+        for m in pieces:
             regions[region_id] = m
             region_id += 1
 
