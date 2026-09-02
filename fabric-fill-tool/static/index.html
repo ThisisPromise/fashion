@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Swatch Table</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --bg: #F2EEE4;
+  --surface: #FFFFFF;
+  --surface-2: #EAE4D6;
+  --ink: #1C2C3A;
+  --ink-dim: #5B6B78;
+  --accent: #C97F1F;
+  --accent-ink: #FFFFFF;
+  --accent-2: #2E8577;
+  --line: #D8D2C2;
+  --shadow: 0 1px 2px rgba(28,44,58,0.10);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131F29; --surface: #1B2A37; --surface-2: #223447;
+    --ink: #ECEDE6; --ink-dim: #92A5B3; --accent: #E8A33D;
+    --accent-ink: #1C2C3A; --accent-2: #4FB6A8; --line: #2E4356;
+    --shadow: 0 1px 3px rgba(0,0,0,0.45);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131F29; --surface: #1B2A37; --surface-2: #223447;
+  --ink: #ECEDE6; --ink-dim: #92A5B3; --accent: #E8A33D;
+  --accent-ink: #1C2C3A; --accent-2: #4FB6A8; --line: #2E4356;
+  --shadow: 0 1px 3px rgba(0,0,0,0.45);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+img { max-width: 100%; }
+
+.page { max-width: 1180px; margin: 0 auto; padding: 40px 24px 64px; }
+.topbar { margin-bottom: 32px; }
+.brand { display: flex; align-items: baseline; gap: 12px; }
+.brand-mark { font-size: 1.3rem; color: var(--accent); transform: translateY(1px); }
+.brand h1 {
+  font-family: 'Fraunces', Georgia, serif; font-weight: 600;
+  font-size: clamp(1.9rem, 3.2vw, 2.5rem); letter-spacing: -0.01em; margin: 0;
+  text-wrap: balance;
+}
+.tagline { margin: 10px 0 0; color: var(--ink-dim); font-size: 1.02rem; max-width: 66ch; line-height: 1.55; }
+
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 28px; align-items: start; }
+@media (max-width: 900px) { .workspace { grid-template-columns: 1fr; } }
+
+.stage-panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 18px; box-shadow: var(--shadow); }
+.stage-toolbar { display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px; }
+.source-group { display: flex; flex-direction: column; gap: 7px; }
+.source-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); }
+.source-tag {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; font-weight: 400; text-transform: none;
+  letter-spacing: 0; color: var(--accent-2); margin-left: 6px;
+}
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.image-switch { display: flex; gap: 2px; background: var(--surface-2); border-radius: 5px; padding: 3px; }
+.switch-btn {
+  font-family: inherit; font-size: 0.86rem; font-weight: 500; padding: 7px 13px; border: none;
+  border-radius: 4px; background: transparent; color: var(--ink-dim); cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.switch-btn.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.switch-btn:hover:not(.active) { color: var(--ink); }
+
+.upload-zone {
+  border: 1.5px dashed var(--line); border-radius: 5px; padding: 8px 14px;
+  font-size: 0.84rem; color: var(--ink-dim); cursor: pointer; background: transparent;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); color: var(--ink); background: var(--surface-2); }
+.upload-zone input { display: none; }
+
+.hint { margin: 0; font-size: 0.86rem; color: var(--ink-dim); line-height: 1.5; }
+
+.canvas-frame {
+  position: relative;
+  background: repeating-linear-gradient(0deg, var(--surface-2) 0 1px, transparent 1px 24px),
+              repeating-linear-gradient(90deg, var(--surface-2) 0 1px, transparent 1px 24px), var(--surface);
+  border: 1px solid var(--line); border-radius: 4px; display: flex; justify-content: center; padding: 20px;
+  min-height: 200px;
+}
+#stage { width: min(100%, 460px); height: auto; cursor: default; display: block; }
+#stage.clickable { cursor: pointer; }
+#stage.drop-hover { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+
+.loading-overlay {
+  position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  font-size: 0.9rem; color: var(--ink-dim); font-family: 'IBM Plex Mono', monospace;
+}
+.loading-overlay.active { display: flex; }
+
+.hover-status { margin: 12px 2px 0; font-size: 0.82rem; color: var(--ink-dim); min-height: 1.2em; }
+
+.control-panel { display: flex; flex-direction: column; gap: 14px; }
+.panel-block { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px; box-shadow: var(--shadow); }
+.panel-block h2 { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-dim); margin: 0 0 10px; }
+.stat { margin: 0; display: flex; align-items: baseline; gap: 8px; }
+.stat span:first-child { font-family: 'IBM Plex Mono', monospace; font-size: 1.6rem; font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
+.stat-label { font-size: 0.82rem; color: var(--ink-dim); }
+#selected-list { margin: 8px 0 0; font-size: 0.86rem; color: var(--ink-dim); word-break: break-word; }
+
+.swatch-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.swatch {
+  width: 52px; height: 52px; border-radius: 5px; background-size: cover; background-position: center;
+  border: 2px solid transparent; cursor: grab; padding: 0;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+.swatch:hover { transform: translateY(-1px); }
+.swatch:active { cursor: grabbing; }
+.swatch.active { border-color: var(--accent); }
+.swatch-upload {
+  width: 52px; height: 52px; border-radius: 5px; border: 1.5px dashed var(--line);
+  background: transparent; color: var(--ink-dim); cursor: pointer; font-size: 1.3rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.swatch-upload:hover { border-color: var(--accent); color: var(--accent); }
+
+.actions { display: flex; flex-direction: column; gap: 8px; }
+.btn {
+  font-family: inherit; font-size: 0.92rem; font-weight: 500; padding: 10px 16px; border-radius: 5px;
+  border: 1px solid transparent; cursor: pointer; transition: filter 0.15s ease, background 0.15s ease;
+}
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-primary:hover { filter: brightness(1.06); }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
+.btn-secondary { background: var(--accent-2); color: #fff; }
+.btn-secondary:hover { filter: brightness(1.08); }
+.btn-ghost { background: transparent; color: var(--ink-dim); border-color: var(--line); }
+.btn-ghost:hover { color: var(--ink); border-color: var(--ink-dim); }
+
+.footnote { font-size: 0.82rem; color: var(--ink-dim); line-height: 1.55; margin: 0; }
+.error-text { font-size: 0.84rem; color: #B5452F; margin: 8px 2px 0; min-height: 1.1em; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">&#9987;</span>
+      <h1>Swatch Table</h1>
+    </div>
+    <p class="tagline">
+      Segmentation runs automatically the moment an image loads &mdash; nothing here is marked by hand.
+      Click a panel to select it, click several to group them, choose a fabric, and apply it to the whole
+      group at once.
+    </p>
+  </header>
+
+  <main class="workspace">
+    <section class="stage-panel">
+      <div class="stage-toolbar">
+        <div class="source-group">
+          <span class="source-label">Sketches &amp; flats <span class="source-tag">classical CV</span></span>
+          <div class="row">
+            <div class="image-switch" id="image-switch">
+              <button class="switch-btn active" data-preset="sketch">Dress sketch</button>
+              <button class="switch-btn" data-preset="sketch1">Technical flat</button>
+            </div>
+            <label class="upload-zone" id="sketch-drop">
+              Drop a sketch here, or click to upload
+              <input type="file" id="sketch-input" accept="image/*">
+            </label>
+          </div>
+        </div>
+        <div class="source-group">
+          <span class="source-label">Real photos <span class="source-tag">trained model</span></span>
+          <div class="row">
+            <div class="image-switch" id="photo-switch">
+              <button class="switch-btn" data-preset="photo1">Photo 1</button>
+              <button class="switch-btn" data-preset="photo2">Photo 2</button>
+            </div>
+            <label class="upload-zone" id="photo-drop">
+              Drop a real photo here, or click to upload
+              <input type="file" id="photo-input" accept="image/*">
+            </label>
+          </div>
+        </div>
+        <p class="hint">Drag a fabric swatch straight onto any panel to fill it directly. Or click one or more panels first to select a group &mdash; then dropping a swatch on any of them fills the whole group at once.</p>
+      </div>
+      <div class="canvas-frame">
+        <canvas id="stage"></canvas>
+        <div class="loading-overlay" id="loading-overlay">Segmenting&hellip;</div>
+      </div>
+      <p class="hover-status" id="hover-status">&nbsp;</p>
+      <p class="error-text" id="error-text"></p>
+    </section>
+
+    <aside class="control-panel">
+      <div class="panel-block">
+        <h2>Regions found</h2>
+        <p class="stat"><span id="region-count" class="mono">&ndash;</span><span class="stat-label">automatically, before any click</span></p>
+      </div>
+
+      <div class="panel-block">
+        <h2>Selection</h2>
+        <p class="stat"><span id="selected-count" class="mono">0</span><span class="stat-label">selected</span></p>
+        <p id="selected-list" class="mono">&mdash;</p>
+      </div>
+
+      <div class="panel-block">
+        <h2>Fabric</h2>
+        <div class="swatch-row" id="swatch-row"></div>
+      </div>
+
+      <div class="panel-block actions">
+        <button id="apply-btn" class="btn btn-primary" disabled>Apply to selected</button>
+        <button id="save-btn" class="btn btn-secondary">Save image</button>
+        <button id="reset-btn" class="btn btn-ghost">Reset image</button>
+      </div>
+
+      <p class="footnote">Uploading a sketch runs the same automatic segmentation as the two presets. Uploading a fabric adds it as a new swatch &mdash; no re-segmenting needed, it just gets tiled into whatever's selected.</p>
+    </aside>
+  </main>
+</div>
+
+<script>
+const DEFAULT_FABRICS = {"fabric1": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAIAAAABc2X6AAACnElEQVR4nO2aL3rbQBDF377PyKW+QUlQgFFAcY9QXOBD5AgBPYJBcM4REGQgVNCeoKUJ7vdVbZpa8mq1Mzva9fhBy/vnpzeaXY02fLu6AnCz26CYnvY/UY0IZ2Jpew36n6Ww+fLBZiTdwL7e3g5/7A53kw1XaEqjnMOrEXLCSvLAjtMm/nOFFpSOetSkG1jNs6SNtCUMlRHVEtrRHhpwWFdExZLbO+yHZ0971Fu9wIVEOBPhIJ7f9lkpcDkRzkTLwWqoBBDORDgTXcUzans9fH27WGP/ctjpdt79flWkzY2fHOVmt7EpfdEg2OL9m6EuH9JxzvVWM6q7v6WPP0mrnMmnek5xdb3dq8yhe1Po+ZelSzBLaC2WpSdVZhVaucnd/3W80H9bksxpqMiNy+s5+2HuBlXLcWAJ82ROzut2LvapWnw4BZwxv5TFFjIlMke+PIQ4cMpc0598xVw1Sp7ybSkkAstlkJlTbj3hTLQZxmbhTRmFcCbCmQhnIpyJcCbCmQhnIpyJNsNUUirExeGCWrY2+qqLwyVlXxu1q0uf+oS/hk7lNVtBvQAweVpBq9qcFzhBETj9YIYi89zHJKgAZ5xBUWHOSApc6sSN/LtRXgoMQofl54syrJZk+yABVjxNlYj94+MjgO+f8ue8quTsWB/hEewe9dyOPLwcds+3n4sOwXqOBvZ6d3cf/4MknnHZSy9s76TJQnvRlsNyWmQsS7r2jqao3uGjSyq0WCpLx1Px8KoWLRYBnrXwKKIu8wzPXWbfP3xtGPg5a1Ohy0xYSbKFUmQmTCTfMGoxE+WltT1WYSaciXMbpBwNqlksPYDu6548qpnRpmmTCWdiXrN2TSacidktGzWZksYtMlPYfpJ5sig3S1WUeLqmfP4F0OPz5oXdNIQAAAAASUVORK5CYII=", "fabric2": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAIAAAABc2X6AAABHUlEQVR4nOXaIU4DQRxG8cfLegxYFKIaheAI1QgOgeIE6CoOwQl6CLhBBQpbxQ0QmApKQwtdyvupTWYyX2Ymmexk/kcnV/d808v8lkNzPn34+JAYiZEYiZEYiZEYiZEYiZEYiZEYiZEYiRlGST1eXK5reps8/cMJb7cWwOndDbuRGImRGIkZOCjL2ePXHTaeahIjMRIjMRIjMRIz7PL0uLXljLFIjMRIjMQMo6R++ou/8WLwIyRGYiRGYiRmGCV1/rrY58jTs0l3hyVGYgb+jOfriz2kSIzESIzESIzESIzESIzESIzESIzESIzEDOsatn742L3+81dJjMRIjMRIjMRIjMRIjMRIjMRIjMRIjMRIzDBK6mqVyaotil3WDbXOO/sUH1CIAFD6AAAAAElFTkSuQmCC"};
+
+const state = {
+  fabrics: { ...DEFAULT_FABRICS },
+  activeFabric: 'fabric1',
+  fabricData: {},
+  selected: new Set(),
+  labelData: null,
+  width: 0,
+  height: 0,
+  filledCanvas: null,
+  filledCtx: null,
+  currentAsset: null,
+  presetCache: {},
+};
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+function setLoading(on) {
+  document.getElementById('loading-overlay').classList.toggle('active', on);
+}
+function setError(msg) {
+  document.getElementById('error-text').textContent = msg || '';
+}
+
+async function registerFabric(key, dataUri) {
+  const img = await loadImage(dataUri);
+  const c = document.createElement('canvas');
+  c.width = img.width; c.height = img.height;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+  state.fabricData[key] = { data: ctx.getImageData(0, 0, img.width, img.height).data, w: img.width, h: img.height };
+}
+
+async function preloadDefaultFabrics() {
+  for (const key of Object.keys(DEFAULT_FABRICS)) {
+    await registerFabric(key, DEFAULT_FABRICS[key]);
+  }
+}
+
+async function loadAsset(asset) {
+  state.width = asset.width;
+  state.height = asset.height;
+  state.currentAsset = asset;
+
+  const baseImg = await loadImage(asset.base_data_uri);
+  const labelImg = await loadImage(asset.label_data_uri);
+
+  const stage = document.getElementById('stage');
+  stage.width = asset.width;
+  stage.height = asset.height;
+
+  const filled = document.createElement('canvas');
+  filled.width = asset.width;
+  filled.height = asset.height;
+  const filledCtx = filled.getContext('2d');
+  filledCtx.drawImage(baseImg, 0, 0);
+  state.filledCanvas = filled;
+  state.filledCtx = filledCtx;
+
+  const labelCanvas = document.createElement('canvas');
+  labelCanvas.width = asset.width;
+  labelCanvas.height = asset.height;
+  const labelCtx = labelCanvas.getContext('2d');
+  labelCtx.drawImage(labelImg, 0, 0);
+  state.labelData = labelCtx.getImageData(0, 0, asset.width, asset.height).data;
+
+  state.selected.clear();
+  render();
+  updateStatus();
+}
+
+async function loadPreset(name, apiPath) {
+  setError('');
+  setLoading(true);
+  const cacheKey = apiPath + name;
+  try {
+    if (!state.presetCache[cacheKey]) {
+      const res = await fetch(apiPath + name);
+      if (!res.ok) throw new Error('preset failed');
+      state.presetCache[cacheKey] = await res.json();
+    }
+    await loadAsset(state.presetCache[cacheKey]);
+  } catch (e) {
+    setError('Could not load that preset. Is the server running?');
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function uploadImage(file, endpoint) {
+  setError('');
+  setLoading(true);
+  document.querySelectorAll('.switch-btn').forEach((b) => b.classList.remove('active'));
+  try {
+    const form = new FormData();
+    form.append('image', file);
+    const res = await fetch(endpoint, { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'segment failed');
+    await loadAsset(data);
+  } catch (e) {
+    setError('Could not segment that image: ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+function render() {
+  const stage = document.getElementById('stage');
+  const ctx = stage.getContext('2d');
+  ctx.drawImage(state.filledCanvas, 0, 0);
+  if (state.selected.size > 0) {
+    const imgData = ctx.getImageData(0, 0, state.width, state.height);
+    const data = imgData.data;
+    const label = state.labelData;
+    for (let i = 0; i < data.length; i += 4) {
+      const rid = label[i];
+      if (state.selected.has(rid)) {
+        data[i] = data[i] * 0.45 + 232 * 0.55;
+        data[i + 1] = data[i + 1] * 0.45 + 163 * 0.55;
+        data[i + 2] = data[i + 2] * 0.45 + 61 * 0.55;
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+  }
+}
+
+function regionAt(x, y) {
+  if (x < 0 || y < 0 || x >= state.width || y >= state.height) return 0;
+  return state.labelData[(y * state.width + x) * 4];
+}
+
+function canvasCoords(e) {
+  const stage = document.getElementById('stage');
+  const rect = stage.getBoundingClientRect();
+  return {
+    x: Math.floor((e.clientX - rect.left) * (stage.width / rect.width)),
+    y: Math.floor((e.clientY - rect.top) * (stage.height / rect.height)),
+  };
+}
+
+function fillRegionSet(regionIds, fabricKey) {
+  const fab = state.fabricData[fabricKey];
+  if (!fab) return;
+  const ctx = state.filledCtx;
+  const imgData = ctx.getImageData(0, 0, state.width, state.height);
+  const data = imgData.data;
+  const label = state.labelData;
+  for (let y = 0; y < state.height; y++) {
+    for (let x = 0; x < state.width; x++) {
+      const idx = (y * state.width + x) * 4;
+      const rid = label[idx];
+      if (regionIds.has(rid)) {
+        const fx = x % fab.w, fy = y % fab.h;
+        const fidx = (fy * fab.w + fx) * 4;
+        data[idx] = fab.data[fidx];
+        data[idx + 1] = fab.data[fidx + 1];
+        data[idx + 2] = fab.data[fidx + 2];
+      }
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+function applyFabric() {
+  if (state.selected.size === 0) return;
+  fillRegionSet(state.selected, state.activeFabric);
+  state.selected.clear();
+  render();
+  updateStatus();
+}
+
+function updateStatus() {
+  document.getElementById('region-count').textContent = state.currentAsset ? state.currentAsset.region_count : '–';
+  document.getElementById('selected-count').textContent = state.selected.size;
+  document.getElementById('selected-list').textContent = state.selected.size
+    ? [...state.selected].sort((a, b) => a - b).map((n) => '#' + n).join(', ')
+    : '—';
+  document.getElementById('apply-btn').disabled = state.selected.size === 0;
+}
+
+function saveImage() {
+  if (!state.filledCanvas) return;
+  state.filledCanvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'swatch-table-result.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, 'image/png');
+}
+
+function buildSwatchButtons() {
+  const row = document.getElementById('swatch-row');
+  row.innerHTML = '';
+  Object.keys(state.fabrics).forEach((key) => {
+    const b = document.createElement('button');
+    b.className = 'swatch' + (key === state.activeFabric ? ' active' : '');
+    b.style.backgroundImage = `url(${state.fabrics[key]})`;
+    b.setAttribute('aria-label', 'Fabric ' + key);
+    b.draggable = true;
+    b.addEventListener('click', () => {
+      state.activeFabric = key;
+      document.querySelectorAll('.swatch').forEach((s) => s.classList.remove('active'));
+      b.classList.add('active');
+    });
+    b.addEventListener('dragstart', (e) => {
+      state.activeFabric = key;
+      document.querySelectorAll('.swatch').forEach((s) => s.classList.remove('active'));
+      b.classList.add('active');
+      window._draggedFabricKey = key;
+      e.dataTransfer.effectAllowed = 'copy';
+      e.dataTransfer.setData('text/plain', key);
+    });
+    row.appendChild(b);
+  });
+  const upload = document.createElement('label');
+  upload.className = 'swatch-upload';
+  upload.innerHTML = '+<input type="file" accept="image/*" id="fabric-input">';
+  row.appendChild(upload);
+  document.getElementById('fabric-input').addEventListener('change', onFabricFile);
+}
+
+async function onFabricFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const key = 'custom-' + Date.now();
+  const dataUri = await new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(file);
+  });
+  state.fabrics[key] = dataUri;
+  await registerFabric(key, dataUri);
+  state.activeFabric = key;
+  buildSwatchButtons();
+}
+
+function setupDropZone(zoneId, inputId, endpoint) {
+  const zone = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+  input.addEventListener('change', (e) => {
+    if (e.target.files[0]) uploadImage(e.target.files[0], endpoint);
+  });
+  ['dragenter', 'dragover'].forEach((evt) =>
+    zone.addEventListener(evt, (e) => { e.preventDefault(); zone.classList.add('dragover'); })
+  );
+  ['dragleave', 'drop'].forEach((evt) =>
+    zone.addEventListener(evt, (e) => { e.preventDefault(); zone.classList.remove('dragover'); })
+  );
+  zone.addEventListener('drop', (e) => {
+    const file = e.dataTransfer.files[0];
+    if (file) uploadImage(file, endpoint);
+  });
+}
+
+document.getElementById('stage').addEventListener('click', (e) => {
+  const { x, y } = canvasCoords(e);
+  const rid = regionAt(x, y);
+  if (rid === 0) return;
+  if (state.selected.has(rid)) state.selected.delete(rid);
+  else state.selected.add(rid);
+  render();
+  updateStatus();
+});
+
+document.getElementById('stage').addEventListener('mousemove', (e) => {
+  const { x, y } = canvasCoords(e);
+  const rid = regionAt(x, y);
+  const stage = document.getElementById('stage');
+  const status = document.getElementById('hover-status');
+  if (rid === 0) {
+    stage.classList.remove('clickable');
+    status.textContent = ' ';
+  } else {
+    stage.classList.add('clickable');
+    status.textContent = 'Region #' + rid + (state.selected.has(rid) ? ' — selected' : ' — click to select');
+  }
+});
+
+document.getElementById('stage').addEventListener('dragover', (e) => {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'copy';
+  const { x, y } = canvasCoords(e);
+  const rid = regionAt(x, y);
+  const stage = document.getElementById('stage');
+  stage.classList.toggle('drop-hover', rid !== 0);
+  const status = document.getElementById('hover-status');
+  if (rid !== 0) {
+    status.textContent = state.selected.size > 0
+      ? 'Drop to fill all ' + state.selected.size + ' selected regions'
+      : 'Drop to fill region #' + rid;
+  }
+});
+
+document.getElementById('stage').addEventListener('dragleave', () => {
+  document.getElementById('stage').classList.remove('drop-hover');
+});
+
+document.getElementById('stage').addEventListener('drop', (e) => {
+  e.preventDefault();
+  document.getElementById('stage').classList.remove('drop-hover');
+  const key = window._draggedFabricKey || e.dataTransfer.getData('text/plain');
+  if (!key || !state.fabricData[key]) return;
+  const { x, y } = canvasCoords(e);
+  const rid = regionAt(x, y);
+  if (rid === 0) return;
+  const targets = state.selected.size > 0 ? state.selected : new Set([rid]);
+  fillRegionSet(targets, key);
+  state.selected.clear();
+  render();
+  updateStatus();
+});
+
+document.getElementById('image-switch').addEventListener('click', (e) => {
+  const btn = e.target.closest('.switch-btn');
+  if (!btn) return;
+  document.querySelectorAll('.switch-btn').forEach((b) => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadPreset(btn.dataset.preset, '/api/preset/');
+});
+
+document.getElementById('photo-switch').addEventListener('click', (e) => {
+  const btn = e.target.closest('.switch-btn');
+  if (!btn) return;
+  document.querySelectorAll('.switch-btn').forEach((b) => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadPreset(btn.dataset.preset, '/api/preset_photo/');
+});
+
+document.getElementById('apply-btn').addEventListener('click', applyFabric);
+document.getElementById('save-btn').addEventListener('click', saveImage);
+document.getElementById('reset-btn').addEventListener('click', () => {
+  if (state.currentAsset) loadAsset(state.currentAsset);
+});
+
+(async function init() {
+  buildSwatchButtons();
+  await preloadDefaultFabrics();
+  setupDropZone('sketch-drop', 'sketch-input', '/api/segment');
+  setupDropZone('photo-drop', 'photo-input', '/api/segment_photo');
+  await loadPreset('sketch', '/api/preset/');
+})();
+</script>
+</body>
+</html>

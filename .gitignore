@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+fabric-fill-tool/src/_upload_tmp_*.png
+swatch-table-result*.png
