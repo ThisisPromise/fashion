@@ -158,6 +158,34 @@ def extract_regions(image_path, checkpoint_path=DEFAULT_CHECKPOINT):
     return regions
 
 
+def extract_regions_combined(image_path):
+    """Runs the upperbody and lowerbody checkpoints on the same photo and
+    merges their regions into one set -- no manual "which half of my body
+    is this" choice. A photo showing only a top or only trousers just gets
+    whatever that half's model actually finds; nothing forces both halves
+    to be present.
+
+    Where the two models' predictions genuinely overlap in pixel space
+    (e.g. right at the waistband, where "upperbody torso" and "lowerbody
+    body" can both claim the same few rows), the lowerbody region wins in
+    the final region map, since it's merged in second -- an arbitrary but
+    harmless tie-break; it doesn't change what either model predicted, only
+    which single region a pixel in that thin overlap strip belongs to when
+    the two disagree."""
+    upper_regions = extract_regions(image_path, UPPERBODY_CHECKPOINT)
+    lower_regions = extract_regions(image_path, LOWERBODY_CHECKPOINT)
+
+    merged = {}
+    region_id = 1
+    for m in upper_regions.values():
+        merged[region_id] = m
+        region_id += 1
+    for m in lower_regions.values():
+        merged[region_id] = m
+        region_id += 1
+    return merged
+
+
 if __name__ == "__main__":
     import sys as _sys
     path = _sys.argv[1] if len(_sys.argv) > 1 else "fabric-fill-tool/sample_photos/photo1.jpg"

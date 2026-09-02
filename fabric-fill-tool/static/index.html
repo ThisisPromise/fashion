@@ -183,10 +183,6 @@ img { max-width: 100%; }
         <div class="source-group">
           <span class="source-label">Real photos <span class="source-tag">trained model</span></span>
           <div class="row">
-            <div class="image-switch" id="photo-area-switch">
-              <button class="switch-btn active" data-area="upperbody">Upper body</button>
-              <button class="switch-btn" data-area="lowerbody">Lower body</button>
-            </div>
             <div class="image-switch" id="photo-switch">
               <button class="switch-btn" data-preset="photo1">Photo 1</button>
               <button class="switch-btn" data-preset="photo2">Photo 2</button>
@@ -196,7 +192,7 @@ img { max-width: 100%; }
               <input type="file" id="photo-input" accept="image/*">
             </label>
           </div>
-          <p class="hint">Photo 1 is cropped at the waist (upper body only); Photo 2 shows the full body, so it's the one to try for Lower body.</p>
+          <p class="hint">Top and bottom garments are both detected automatically in one pass &mdash; no need to say which.</p>
         </div>
         <p class="hint">Drag a fabric swatch straight onto any panel to fill it directly. Or click one or more panels first to select a group &mdash; then dropping a swatch on any of them fills the whole group at once.</p>
       </div>
@@ -253,7 +249,6 @@ const state = {
   currentAsset: null,
   presetCache: {},
   showAllRegions: false,
-  photoArea: 'upperbody',
 };
 
 // distinct per-region colors for the "show regions" overview -- cycles if
@@ -351,11 +346,10 @@ async function uploadImage(file, endpoint) {
   const isPhoto = endpoint === '/api/segment_photo';
   document.querySelectorAll(isPhoto ? '#photo-switch .switch-btn' : '#image-switch .switch-btn')
     .forEach((b) => b.classList.remove('active'));
-  const url = isPhoto ? `${endpoint}?area=${state.photoArea}` : endpoint;
   try {
     const form = new FormData();
     form.append('image', file);
-    const res = await fetch(url, { method: 'POST', body: form });
+    const res = await fetch(endpoint, { method: 'POST', body: form });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'segment failed');
     await loadAsset(data);
@@ -617,19 +611,7 @@ document.getElementById('photo-switch').addEventListener('click', (e) => {
   const btn = e.target.closest('.switch-btn');
   if (!btn) return;
   setActiveInGroup(group, btn);
-  loadPresetUrl(`/api/preset_photo/${btn.dataset.preset}?area=${state.photoArea}`);
-});
-
-document.getElementById('photo-area-switch').addEventListener('click', (e) => {
-  const group = e.currentTarget;
-  const btn = e.target.closest('.switch-btn');
-  if (!btn) return;
-  setActiveInGroup(group, btn);
-  state.photoArea = btn.dataset.area;
-  const activePhotoBtn = document.querySelector('#photo-switch .switch-btn.active');
-  if (activePhotoBtn) {
-    loadPresetUrl(`/api/preset_photo/${activePhotoBtn.dataset.preset}?area=${state.photoArea}`);
-  }
+  loadPresetUrl(`/api/preset_photo/${btn.dataset.preset}`);
 });
 
 document.getElementById('apply-btn').addEventListener('click', applyFabric);

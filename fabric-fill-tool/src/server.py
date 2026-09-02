@@ -37,13 +37,6 @@ PHOTO_PRESETS = {
     "photo1": os.path.join(TOOL_DIR, "sample_photos", "photo1.jpg"),
     "photo2": os.path.join(TOOL_DIR, "sample_photos", "photo2.jpg"),
 }
-# photo2 is a full-body runway shot -- trousers are actually visible in it,
-# so it doubles as a lowerbody test case. photo1 is cropped at the waist,
-# no legs in frame, so it's upperbody-only.
-PHOTO_AREA_CHECKPOINTS = {
-    "upperbody": photo_segmentation.UPPERBODY_CHECKPOINT,
-    "lowerbody": photo_segmentation.LOWERBODY_CHECKPOINT,
-}
 
 app = Flask(__name__, static_folder=None)
 
@@ -101,12 +94,15 @@ def segment_flat(pil_img):
     return build_asset(img, regions)
 
 
-def segment_photo(pil_img, checkpoint_path=photo_segmentation.DEFAULT_CHECKPOINT):
+def segment_photo(pil_img):
+    """Always runs both the upperbody and lowerbody checkpoints and merges
+    their regions -- no manual "which half" choice. A photo showing only a
+    top, only trousers, or the full body all just work."""
     img = _clamp_size(pil_img.convert("RGB"))
     tmp_path = os.path.join(SRC_DIR, "_upload_tmp_photo.png")
     img.save(tmp_path)
     try:
-        regions = photo_segmentation.extract_regions(tmp_path, checkpoint_path)
+        regions = photo_segmentation.extract_regions_combined(tmp_path)
     finally:
         os.remove(tmp_path)
     return build_asset(img, regions)
@@ -132,11 +128,9 @@ def api_preset_photo(name):
     path = PHOTO_PRESETS.get(name)
     if not path or not os.path.exists(path):
         return jsonify({"error": "unknown preset"}), 404
-    area = request.args.get("area", "upperbody")
-    checkpoint_path = PHOTO_AREA_CHECKPOINTS.get(area, photo_segmentation.DEFAULT_CHECKPOINT)
     img = Image.open(path)
     img.load()
-    return jsonify(segment_photo(img, checkpoint_path))
+    return jsonify(segment_photo(img))
 
 
 @app.route("/api/segment", methods=["POST"])
@@ -162,9 +156,7 @@ def api_segment_photo():
         img.load()
     except Exception:
         return jsonify({"error": "could not read that as an image"}), 400
-    area = request.args.get("area", "upperbody")
-    checkpoint_path = PHOTO_AREA_CHECKPOINTS.get(area, photo_segmentation.DEFAULT_CHECKPOINT)
-    return jsonify(segment_photo(img, checkpoint_path))
+    return jsonify(segment_photo(img))
 
 
 if __name__ == "__main__":
