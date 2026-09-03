@@ -183,10 +183,6 @@ img { max-width: 100%; }
         <div class="source-group">
           <span class="source-label">Real photos <span class="source-tag">trained model</span></span>
           <div class="row">
-            <div class="image-switch" id="photo-switch">
-              <button class="switch-btn" data-preset="photo1">Photo 1</button>
-              <button class="switch-btn" data-preset="photo2">Photo 2</button>
-            </div>
             <label class="upload-zone" id="photo-drop">
               Drop a real photo here, or click to upload
               <input type="file" id="photo-input" accept="image/*">
@@ -343,9 +339,9 @@ async function loadPresetUrl(url) {
 async function uploadImage(file, endpoint) {
   setError('');
   setLoading(true);
-  const isPhoto = endpoint === '/api/segment_photo';
-  document.querySelectorAll(isPhoto ? '#photo-switch .switch-btn' : '#image-switch .switch-btn')
-    .forEach((b) => b.classList.remove('active'));
+  if (endpoint === '/api/segment') {
+    document.querySelectorAll('#image-switch .switch-btn').forEach((b) => b.classList.remove('active'));
+  }
   try {
     const form = new FormData();
     form.append('image', file);
@@ -606,13 +602,6 @@ document.getElementById('image-switch').addEventListener('click', (e) => {
   loadPresetUrl(`/api/preset/${btn.dataset.preset}`);
 });
 
-document.getElementById('photo-switch').addEventListener('click', (e) => {
-  const group = e.currentTarget;
-  const btn = e.target.closest('.switch-btn');
-  if (!btn) return;
-  setActiveInGroup(group, btn);
-  loadPresetUrl(`/api/preset_photo/${btn.dataset.preset}`);
-});
 
 document.getElementById('apply-btn').addEventListener('click', applyFabric);
 document.getElementById('save-btn').addEventListener('click', saveImage);
