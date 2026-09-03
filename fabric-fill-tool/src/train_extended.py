@@ -186,7 +186,7 @@ def main():
         return ce + dice
 
     history = {"train_loss": [], "val_loss": [], "val_miou": []}
-    best_val_loss = float("inf")
+    best_val_miou = -1.0
 
     os.makedirs(os.path.dirname(cfg["checkpoint_path"]), exist_ok=True)
 
@@ -216,8 +216,8 @@ def main():
               f"val_loss={val_loss:.4f}  val_mIoU={val_miou:.4f}  "
               f"per_class={[round(x, 3) for x in val_iou.tolist()]}")
 
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
+        if val_miou > best_val_miou:
+            best_val_miou = val_miou
             torch.save({
                 "model_state_dict": model.state_dict(),
                 "config": cfg,
