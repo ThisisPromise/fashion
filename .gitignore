@@ -2,3 +2,11 @@ __pycache__/
 *.pyc
 fabric-fill-tool/src/_upload_tmp_*.png
 swatch-table-result*.png
+
+# Large, reproducible Fashionpedia data -- re-downloadable from the URLs in
+# submission/README.md, and submission/data/processed/{images,masks} are
+# just prepare_data.py's output from that raw data. Not meaningful to
+# version -- ~580MB combined, would bloat the repo for no benefit.
+submission/data/fashionpedia/
+submission/data/processed/images/
+submission/data/processed/masks/
