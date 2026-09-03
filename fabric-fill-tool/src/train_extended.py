@@ -23,7 +23,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 
 SRC_DIR = os.path.dirname(os.path.abspath(__file__))
 TOOL_DIR = os.path.dirname(SRC_DIR)
@@ -54,6 +54,36 @@ def compute_class_weights(data_dir, split_manifest_path, num_classes):
     weights = 1.0 / np.sqrt(np.maximum(freq, 1e-12))
     weights = weights / weights.mean()
     return torch.tensor(weights, dtype=torch.float32)
+
+
+def compute_sample_weights(data_dir, split_manifest_path, num_classes):
+    """Per-pixel class weighting alone doesn't fix a class that's simply
+    ABSENT from most training images -- an image with no zipper in it never
+    gets a chance to teach the model about zipper, no matter how the loss
+    is weighted. This oversamples images that actually contain a rare
+    class, so the epoch sees them more often, on top of (not instead of)
+    the loss weighting."""
+    train_ids = []
+    with open(split_manifest_path) as f:
+        for row in csv.DictReader(f):
+            if row["split"] == "train":
+                train_ids.append(row["image_id"])
+
+    mask_dir = os.path.join(data_dir, "masks")
+    presence = np.zeros((len(train_ids), num_classes), dtype=bool)
+    for i, image_id in enumerate(train_ids):
+        m = np.array(Image.open(os.path.join(mask_dir, f"{image_id}.png")))
+        for c in range(num_classes):
+            presence[i, c] = (m == c).any()
+
+    class_image_freq = presence.mean(axis=0)  # fraction of images containing each class
+    class_rarity = 1.0 / np.maximum(class_image_freq, 1e-6)
+
+    sample_weights = np.ones(len(train_ids), dtype=np.float64)
+    for c in range(2, num_classes):  # skip background (0) and body (1) -- never rare
+        sample_weights = np.maximum(sample_weights, np.where(presence[:, c], class_rarity[c], 1.0))
+
+    return train_ids, torch.tensor(sample_weights, dtype=torch.double)
 
 
 def dice_loss(logits, targets, num_classes, eps=1e-6):
@@ -120,7 +150,12 @@ def main():
 
     train_ds = GarmentSegDataset(data_dir, "train", image_size=cfg["image_size"])
     val_ds = GarmentSegDataset(data_dir, "val", image_size=cfg["image_size"])
-    train_loader = DataLoader(train_ds, batch_size=cfg["batch_size"], shuffle=True, num_workers=0)
+
+    _train_ids_for_sampler, sample_weights = compute_sample_weights(data_dir, split_manifest_path, cfg["num_classes"])
+    assert _train_ids_for_sampler == train_ds.ids, "sample weight order must match dataset order"
+    sampler = WeightedRandomSampler(sample_weights, num_samples=len(train_ds), replacement=True)
+
+    train_loader = DataLoader(train_ds, batch_size=cfg["batch_size"], sampler=sampler, num_workers=0)
     val_loader = DataLoader(val_ds, batch_size=cfg["batch_size"], shuffle=False, num_workers=0)
 
     model = TinyGarmentSegModel(
