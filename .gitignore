@@ -10,3 +10,8 @@ swatch-table-result*.png
 submission/data/fashionpedia/
 submission/data/processed/images/
 submission/data/processed/masks/
+
+# Same story for fabric-fill-tool: the trained checkpoints ship, the raw
+# training images/masks that produced them don't. Reproducible by running
+# src/prepare_data_extended.py against the same Fashionpedia data.
+fabric-fill-tool/data/

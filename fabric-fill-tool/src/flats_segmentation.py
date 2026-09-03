@@ -77,7 +77,10 @@ def extract_regions(image_path, threshold=LINE_THRESHOLD,
 
 if __name__ == "__main__":
     import sys
-    path = sys.argv[1] if len(sys.argv) > 1 else "scratch/sample_flat.png"
+    if len(sys.argv) < 2:
+        print("usage: python flats_segmentation.py <image_path>")
+        sys.exit(1)
+    path = sys.argv[1]
     regions, line_mask = extract_regions(path)
     print(f"Found {len(regions)} regions in {path}:")
     for region_id, mask in sorted(regions.items(), key=lambda kv: -kv[1].sum()):

@@ -1,12 +1,16 @@
-"""Training entrypoint for the two extended datasets (upperbody_extended,
-lowerbody). Same recipe as submission/src/train.py -- weighted CE + Dice,
-split learning rates for any unfrozen backbone tail, best-checkpoint
-selection by val loss, 2M trainable-parameter cap enforced -- reusing the
-submission project's model.py rather than duplicating it. Only the data
-loading and config are parameterized instead of hardcoded.
+"""Training entrypoint for the upperbody_extended and lowerbody datasets.
+Same core recipe as submission/src/train.py -- weighted cross-entropy +
+Dice loss, split learning rates for any unfrozen backbone tail, 2M
+trainable-parameter cap enforced -- reusing the submission project's
+model.py rather than duplicating it. Two additions on top of that recipe:
+a class-balanced sampler (compute_sample_weights) so rare classes are seen
+more often per epoch, and checkpoint selection by validation mean IoU
+rather than validation loss, since the two can diverge and mean IoU is the
+metric that's actually reported.
 
-Usage: python fabric-fill-tool/src/train_extended.py --config <path to config json>
-(run from the project root -- config paths are relative to it)
+Usage (run from the repository root, since the config files use paths
+relative to it):
+    python fabric-fill-tool/src/train_extended.py --config fabric-fill-tool/configs/upperbody_extended.json
 """
 
 import argparse

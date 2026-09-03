@@ -1,13 +1,16 @@
-"""Local dev server for the fabric-fill tool.
+"""Local server for the fabric-fill tool.
 
 Two segmentation pipelines behind one shared response shape, so the
 frontend never needs to know which one produced a given image:
-  - flats_segmentation: classical CV (threshold, close gaps, flood-fill)
-    for clean line-art sketches/technical flats.
-  - photo_segmentation: the trained neural model from the submission
-    project (body/sleeve), for real garment photographs.
+  - flats_segmentation: classical computer vision (threshold, close small
+    line gaps, flood-fill) for clean line-art sketches and technical flats.
+  - photo_segmentation: trained segmentation models for real garment
+    photographs.
 Both get downscaled for the browser the same way: base image with
 LANCZOS, label map with NEAREST so region ids never blend at a boundary.
+
+Run with: python server.py (from this directory), then open
+http://127.0.0.1:5000/
 """
 
 import base64
@@ -23,19 +26,14 @@ import photo_segmentation
 
 SRC_DIR = os.path.dirname(os.path.abspath(__file__))
 TOOL_DIR = os.path.dirname(SRC_DIR)
-PROJECT_ROOT = os.path.dirname(TOOL_DIR)
 STATIC_DIR = os.path.join(TOOL_DIR, "static")
 
 TARGET_WIDTH = 460
 MAX_UPLOAD_DIMENSION = 2200  # guard against huge phone-camera uploads slowing segmentation
 
 FLAT_PRESETS = {
-    "sketch": os.path.join(PROJECT_ROOT, "sketch.jpg"),
-    "sketch1": os.path.join(PROJECT_ROOT, "sketch1.png"),
-}
-PHOTO_PRESETS = {
-    "photo1": os.path.join(TOOL_DIR, "sample_photos", "photo1.jpg"),
-    "photo2": os.path.join(TOOL_DIR, "sample_photos", "photo2.jpg"),
+    "sketch": os.path.join(TOOL_DIR, "assets", "flats", "dress-sketch.jpg"),
+    "sketch1": os.path.join(TOOL_DIR, "assets", "flats", "technical-flat.png"),
 }
 
 app = Flask(__name__, static_folder=None)
@@ -121,16 +119,6 @@ def api_preset(name):
     img = Image.open(path)
     img.load()
     return jsonify(segment_flat(img))
-
-
-@app.route("/api/preset_photo/<name>")
-def api_preset_photo(name):
-    path = PHOTO_PRESETS.get(name)
-    if not path or not os.path.exists(path):
-        return jsonify({"error": "unknown preset"}), 404
-    img = Image.open(path)
-    img.load()
-    return jsonify(segment_photo(img))
 
 
 @app.route("/api/segment", methods=["POST"])

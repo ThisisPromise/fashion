@@ -60,10 +60,6 @@ img { max-width: 100%; }
 .stage-toolbar { display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px; }
 .source-group { display: flex; flex-direction: column; gap: 7px; }
 .source-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); }
-.source-tag {
-  font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; font-weight: 400; text-transform: none;
-  letter-spacing: 0; color: var(--accent-2); margin-left: 6px;
-}
 .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .image-switch { display: flex; gap: 2px; background: var(--surface-2); border-radius: 5px; padding: 3px; }
 .switch-btn {
@@ -168,7 +164,7 @@ img { max-width: 100%; }
     <section class="stage-panel">
       <div class="stage-toolbar">
         <div class="source-group">
-          <span class="source-label">Sketches &amp; flats <span class="source-tag">classical CV</span></span>
+          <span class="source-label">Sketches &amp; flats</span>
           <div class="row">
             <div class="image-switch" id="image-switch">
               <button class="switch-btn active" data-preset="sketch">Dress sketch</button>
@@ -181,7 +177,7 @@ img { max-width: 100%; }
           </div>
         </div>
         <div class="source-group">
-          <span class="source-label">Real photos <span class="source-tag">trained model</span></span>
+          <span class="source-label">Real photos</span>
           <div class="row">
             <label class="upload-zone" id="photo-drop">
               Drop a real photo here, or click to upload

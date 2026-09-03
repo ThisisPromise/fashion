@@ -1,25 +1,32 @@
 """Region segmentation for real garment photos.
 
-Reuses trained TinyGarmentSegModel checkpoints -- no retraining logic here.
-Generalized over whatever checkpoint is passed in, so the same code serves
-both the original submission checkpoint (background/body/sleeve) and the
-new extended one (background/body/neckline/collar/pocket/zipper/sleeve):
-  - class 1 ("body") is one connected blob on a worn garment, so it's split
-    into left/right halves by its own bounding-box centerline -- a rougher
-    approximation than a real seam, worth being honest about.
-  - every other non-background class (sleeve, collar, pocket, ...) gets
-    connected-components + a minimum-area filter. Sleeves naturally come out
-    as two separate blobs (left/right arm don't touch); a class like pocket
-    or zipper comes out as however many blobs the model actually predicted,
-    which may be zero on a given photo if that class wasn't detected there
-    -- expected, not a bug, especially for pocket/zipper given how weak
-    those classes are (see fabric-fill-tool/outputs/upperbody_extended/val_metrics.json).
+Two trained segmentation checkpoints -- one for upper-body garments
+(background/body/neckline/collar/pocket/zipper/sleeve), one for lower-body
+garments (background/body/pocket/zipper) -- turned into a set of
+independently selectable regions:
 
-Scope cut, deliberately: no pose-model flat-lay fallback yet (mediapipe
-isn't installed in this environment). A flat-lay/no-person photo will get
-whatever the segmentation model gives it, untrusted-or-not -- same
-limitation the original submission's placement engine was built to guard
-against, not yet reintroduced here.
+  - class 1 ("body") is one connected blob on a worn garment, so it's split
+    into left/right halves by a centerline (the real shoulder midpoint when
+    a person is detected, otherwise the mask's own bounding-box midpoint).
+  - collar and neckline get the same left/right split, since they're
+    anatomically two-sided the same way the torso is.
+  - every other class (sleeve, pocket, zipper) is split by connected
+    components. Sleeves naturally come out as two separate blobs since the
+    left and right arm don't touch; pocket/zipper come out as however many
+    blobs the model actually predicted, which may be zero on a given photo.
+
+Pose landmarks (MediaPipe, see pose_utils_extended.py) are used as a
+geometric sanity check on top of the segmentation output when a person is
+confidently detected:
+  - predictions are clipped to a padded box around the detected person,
+    which removes false positives on background content.
+  - the left/right split uses the real shoulder midpoint instead of a
+    bounding-box guess.
+  - lower-body predictions are clipped to not extend above the hip line, so
+    an occluding garment (e.g. a jacket over the waistband) can't produce
+    "pants" pixels above where the waist actually is.
+No person detected means none of this runs; results fall back to plain
+bounding-box-based behavior.
 """
 
 import os
@@ -35,18 +42,19 @@ TOOL_DIR = os.path.dirname(SRC_DIR)
 PROJECT_ROOT = os.path.dirname(TOOL_DIR)
 SUBMISSION_DIR = os.path.join(PROJECT_ROOT, "submission")
 
-ORIGINAL_CHECKPOINT = os.path.join(SUBMISSION_DIR, "outputs", "checkpoint.pt")
 UPPERBODY_CHECKPOINT = os.path.join(TOOL_DIR, "outputs", "upperbody_extended", "checkpoint.pt")
 LOWERBODY_CHECKPOINT = os.path.join(TOOL_DIR, "outputs", "lowerbody", "checkpoint.pt")
 DEFAULT_CHECKPOINT = UPPERBODY_CHECKPOINT
 
 sys.path.insert(0, SUBMISSION_DIR)
+sys.path.insert(0, SRC_DIR)
 from src.model import TinyGarmentSegModel  # noqa: E402
+from pose_utils_extended import get_pose_info  # noqa: E402
 
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406])
 IMAGENET_STD = np.array([0.229, 0.224, 0.225])
 
-MIN_REGION_AREA_PX = 150  # smaller than the original 200: the new part classes are naturally tiny
+MIN_REGION_AREA_PX = 150
 
 _models = {}  # checkpoint_path -> (model, cfg), loaded once and cached
 
@@ -67,18 +75,13 @@ def predict_labels(image_path, checkpoint_path=DEFAULT_CHECKPOINT):
     """Per-pixel class id at the photo's original resolution, plus the
     checkpoint's class_names.
 
-    Upsamples the model's raw per-class scores to the photo's real
-    resolution with bilinear interpolation BEFORE picking a winner per
-    pixel, rather than picking the winner at the model's native 320x320 and
-    blowing that decision up with nearest-neighbor. Deciding-then-blocking-
-    up turns each of the model's coarse cells into a visible square block
-    once stretched over a much larger photo -- that's what caused the
-    jagged/blocky region edges. Upsampling the scores first lets the
-    boundary curve smoothly between cells instead of stair-stepping. This
-    doesn't invent detail the model never predicted -- a genuinely
-    wrong-shaped region is still wrong-shaped -- it only removes the
-    artificial blockiness sitting on top of whatever the model actually
-    predicted."""
+    The model's raw per-class scores are upsampled to the photo's real
+    resolution with bilinear interpolation before picking a winning class
+    per pixel, rather than picking the winner at the model's native
+    resolution and upsampling that decision with nearest-neighbor -- the
+    latter turns each low-resolution cell into a visible block on a larger
+    photo. Upsampling the scores first lets the class boundary follow a
+    smooth curve instead."""
     model, cfg = _load_model(checkpoint_path)
     garment_image = Image.open(image_path).convert("RGB")
     size = cfg["image_size"]
@@ -107,48 +110,86 @@ def _label_and_filter(mask, min_area=MIN_REGION_AREA_PX):
     return regions
 
 
-def _split_left_right(mask, min_area=MIN_REGION_AREA_PX):
+def _split_left_right(mask, min_area=MIN_REGION_AREA_PX, center_x=None):
+    """center_x, when given, is used as the split line instead of the
+    mask's own bounding-box midpoint -- pass the detected shoulder midpoint
+    for a real anatomical centerline."""
     ys, xs = np.where(mask)
     if len(xs) == 0:
         return []
-    mid_x = (xs.min() + xs.max()) / 2
+    mid_x = center_x if center_x is not None else (xs.min() + xs.max()) / 2
     col_idx = np.arange(mask.shape[1])[None, :]
     left = mask & (col_idx < mid_x)
     right = mask & (col_idx >= mid_x)
     return [m for m in (left, right) if m.sum() >= min_area]
 
 
-# Classes that are anatomically two-sided (a garment's own left/right front
-# panel, a collar's left/right point) get the same left/right centerline
-# split as body -- one clean region per side, instead of exposing every
-# small disconnected fragment the raw prediction happens to break into.
-# Also collapses a lot of the "boundary is messy" complaint: several tiny
-# scattered blobs become two coherent halves. Sleeve/pocket/zipper don't get
-# this -- sleeves already separate naturally (left/right arm don't touch),
-# and there's no similar "two sides" reading for a zipper or a single pocket.
+def _clip_to_bbox(mask, bbox, image_shape, padding_frac=0.15):
+    """Zeroes out anything outside a padded box around the detected
+    person."""
+    h, w = image_shape
+    x0, y0, x1, y1 = bbox
+    pad_x = (x1 - x0) * padding_frac
+    pad_y = (y1 - y0) * padding_frac
+    x0, x1 = max(0, x0 - pad_x), min(w, x1 + pad_x)
+    y0, y1 = max(0, y0 - pad_y), min(h, y1 + pad_y)
+    clip = np.zeros_like(mask)
+    clip[int(y0):int(y1), int(x0):int(x1)] = True
+    return mask & clip
+
+
+def _clip_above_hip(mask, hip_y, margin_px):
+    """Zeroes out anything above (hip_y - margin). margin_px allows some
+    slack since the real waistband usually sits a little above the hip
+    landmark itself."""
+    cutoff = max(0, hip_y - margin_px)
+    clip = np.zeros_like(mask)
+    clip[int(cutoff):, :] = True
+    return mask & clip
+
+
+# Anatomically two-sided part classes get the same left/right split as the
+# torso. Sleeve/pocket/zipper don't: sleeves already separate naturally
+# (left and right arm don't touch), and there's no "two sides" reading for
+# a single pocket or zipper.
 BILATERAL_CLASS_NAMES = {"collar", "neckline"}
 
 
-def extract_regions(image_path, checkpoint_path=DEFAULT_CHECKPOINT):
-    """Returns {region_id: bool mask} -- same shape as
-    flats_segmentation.extract_regions, so the frontend needs zero changes
-    to handle either source. Works for any checkpoint: class 1 (body) is
-    always split left/right; bilateral part classes (collar, neckline) get
-    the same treatment; everything else is split by connected components."""
+def extract_regions(image_path, checkpoint_path=DEFAULT_CHECKPOINT, pose_info=None, clip_above_hip=False):
+    """Returns {region_id: bool mask}. Class 1 (body) is always split
+    left/right; bilateral part classes (collar, neckline) get the same
+    treatment; everything else is split by connected components.
+
+    pose_info (from pose_utils_extended.get_pose_info), when given,
+    restricts every region to a padded box around the detected person and
+    uses the shoulder midpoint as the left/right split line instead of a
+    bounding-box guess. clip_above_hip additionally drops anything above
+    the hip line -- meaningful only for the lower-body checkpoint."""
     pred_full, class_names = predict_labels(image_path, checkpoint_path)
+    center_x = pose_info["shoulder_center_x"] if pose_info else None
 
     regions = {}
     region_id = 1
 
     body_mask = pred_full == 1
-    for m in _split_left_right(body_mask):
+    if pose_info:
+        body_mask = _clip_to_bbox(body_mask, pose_info["person_bbox"], pred_full.shape)
+        if clip_above_hip:
+            margin = 0.15 * (pose_info["hip_y"] - pose_info["shoulder_y"])
+            body_mask = _clip_above_hip(body_mask, pose_info["hip_y"], margin)
+    for m in _split_left_right(body_mask, center_x=center_x):
         regions[region_id] = m
         region_id += 1
 
     for class_id in range(2, len(class_names)):
         class_mask = pred_full == class_id
+        if pose_info:
+            class_mask = _clip_to_bbox(class_mask, pose_info["person_bbox"], pred_full.shape)
+            if clip_above_hip:
+                margin = 0.15 * (pose_info["hip_y"] - pose_info["shoulder_y"])
+                class_mask = _clip_above_hip(class_mask, pose_info["hip_y"], margin)
         if class_names[class_id] in BILATERAL_CLASS_NAMES:
-            pieces = _split_left_right(class_mask)
+            pieces = _split_left_right(class_mask, center_x=center_x)
         else:
             pieces = _label_and_filter(class_mask)
         for m in pieces:
@@ -159,21 +200,27 @@ def extract_regions(image_path, checkpoint_path=DEFAULT_CHECKPOINT):
 
 
 def extract_regions_combined(image_path):
-    """Runs the upperbody and lowerbody checkpoints on the same photo and
-    merges their regions into one set -- no manual "which half of my body
-    is this" choice. A photo showing only a top or only trousers just gets
-    whatever that half's model actually finds; nothing forces both halves
-    to be present.
+    """Runs the upper-body and lower-body checkpoints on the same photo and
+    merges their regions into one set, so a photo showing a top, trousers,
+    or both is handled the same way with no manual selection needed.
 
-    Where the two models' predictions genuinely overlap in pixel space
-    (e.g. right at the waistband, where "upperbody torso" and "lowerbody
-    body" can both claim the same few rows), the lowerbody region wins in
-    the final region map, since it's merged in second -- an arbitrary but
-    harmless tie-break; it doesn't change what either model predicted, only
-    which single region a pixel in that thin overlap strip belongs to when
-    the two disagree."""
-    upper_regions = extract_regions(image_path, UPPERBODY_CHECKPOINT)
-    lower_regions = extract_regions(image_path, LOWERBODY_CHECKPOINT)
+    Where the two models' predictions overlap in pixel space (e.g. right at
+    the waistband), the lower-body region wins in the final region map,
+    since it's merged in second -- an arbitrary tie-break that only affects
+    which single region a pixel in that thin overlap strip belongs to.
+
+    Pose runs once here and is shared by both checkpoints. Any failure to
+    get a pose reading (no person detected, or an infrastructure problem
+    such as a missing model file) is treated the same way: proceed without
+    pose, falling back to plain bounding-box-based behavior."""
+    try:
+        image_rgb = np.array(Image.open(image_path).convert("RGB"))
+        pose_info = get_pose_info(image_rgb)
+    except Exception:
+        pose_info = None
+
+    upper_regions = extract_regions(image_path, UPPERBODY_CHECKPOINT, pose_info=pose_info)
+    lower_regions = extract_regions(image_path, LOWERBODY_CHECKPOINT, pose_info=pose_info, clip_above_hip=True)
 
     merged = {}
     region_id = 1
@@ -188,7 +235,10 @@ def extract_regions_combined(image_path):
 
 if __name__ == "__main__":
     import sys as _sys
-    path = _sys.argv[1] if len(_sys.argv) > 1 else "fabric-fill-tool/sample_photos/photo1.jpg"
+    if len(_sys.argv) < 2:
+        print("usage: python photo_segmentation.py <image_path> [checkpoint_path]")
+        _sys.exit(1)
+    path = _sys.argv[1]
     ckpt = _sys.argv[2] if len(_sys.argv) > 2 else DEFAULT_CHECKPOINT
     regions = extract_regions(path, ckpt)
     _, class_names = predict_labels(path, ckpt)

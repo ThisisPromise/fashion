@@ -1,23 +1,18 @@
-"""Builds two extended training subsets from the same Fashionpedia val2020
-data as the original submission -- one per model, kept as two SEPARATE
-datasets/checkpoints rather than one bigger one, per the plan:
+"""Builds training subsets from Fashionpedia's val2020 data, one per
+segmentation model, kept as separate datasets/checkpoints:
 
-  upperbody_extended: same 741 upper/wholebody-garment images as the
-    original (identical qualifying filter: main garment + sleeve present),
-    now also rasterizing collar/pocket/zipper/neckline wherever Fashionpedia
-    happens to have them annotated on those same images. Doesn't touch or
-    require the original submission/ files at all.
+  upperbody_extended: upper/whole-body garments (shirt, jacket, coat,
+    dress, ...), qualifying on the same rule as body/sleeve (main garment
+    + sleeve present), with collar/pocket/zipper/neckline also rasterized
+    wherever Fashionpedia has them annotated on the same images.
 
-  lowerbody: a new garment scope entirely -- pants/shorts/skirt, which the
-    original model deliberately excluded. Requires pocket/zipper on
-    trousers/skirts is far from universal, so unlike sleeve for the
-    upperbody set, no part class is required to qualify here -- just the
-    main garment. That's a real difference from the original recipe, not an
-    oversight.
+  lowerbody: pants/shorts/skirt. Pocket and zipper aren't universal on
+    lower-body garments, so unlike upperbody's sleeve requirement, no part
+    class is required to qualify here -- only the main garment.
 
-Precedence when parts overlap: painted in the order listed per config, so
-later entries win ties -- same "more specific wins" idea as the original
-sleeve-overrides-body rule, extended to the new parts.
+Precedence when parts overlap: painted in the order listed per dataset
+config, so later entries win ties -- more specific classes override the
+general "body" class.
 """
 
 import json
